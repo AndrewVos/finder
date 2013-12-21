@@ -30,13 +30,17 @@ func indexProductWithName(name string) {
 	Index(map[string]interface{}{"name": name})
 }
 
+func createTextQuery(field string, value string) Query {
+	return Query{Text: []TextQuery{{field, value}}}
+}
+
 func TestFindsSimpleMatches(t *testing.T) {
 	createNameMapping()
 	indexProductWithName("some  thing")
 	indexProductWithName("some other thing")
 	indexProductWithName("other")
 
-	results := Search([]QueryPart{{"name", "thing"}})
+	results := Search(createTextQuery("name", "thing"))
 	expectAmountOfResults(t, results, 2)
 }
 
@@ -46,7 +50,7 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	indexProductWithName("spiderman")
 	indexProductWithName("spiderman superman")
 
-	results := Search([]QueryPart{{"name", "spiderman superman"}})
+	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
 
 	expectedThingWithName(t, results, 0, "batman spiderman superman")
@@ -89,7 +93,7 @@ func TestLargeFile(t *testing.T) {
 	fmt.Println("indexing complete")
 
 	start := time.Now()
-	results := Search([]QueryPart{{"name", "blue dress"}})
+	results := Search(createTextQuery("name", "blue dress"))
 	elapsed := time.Since(start)
 
 	for _, result := range results {

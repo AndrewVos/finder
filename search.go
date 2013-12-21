@@ -10,16 +10,18 @@ var Mappings map[string]string
 var tries map[string]*Trie
 var allThings map[int]map[string]interface{}
 
-type QueryPart struct {
+type TextQuery struct {
 	Field string
 	Value string
 }
 
-func Search(queries []QueryPart) []map[string]interface{} {
-	for _, query := range queries {
-		if Mappings[query.Field] == "text" {
-			return searchTextField(query.Field, query.Value)
-		}
+type Query struct {
+	Text []TextQuery
+}
+
+func Search(query Query) []map[string]interface{} {
+	for _, text := range query.Text {
+		return searchTextField(text.Field, text.Value)
 	}
 	return nil
 }
