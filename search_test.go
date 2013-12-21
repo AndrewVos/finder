@@ -4,37 +4,45 @@ import (
 	"testing"
 )
 
-func TestFindsSimpleMatches(t *testing.T) {
-	Mappings = map[string]string{
-		"name": "text",
-	}
-	Index(map[string]interface{}{"name": "some thing"})
-	Index(map[string]interface{}{"name": "some other thing"})
-	Index(map[string]interface{}{"name": "other"})
-
-	results := Search([]QueryPart{{"name", "thing"}})
-	if len(results) != 2 {
-		t.Errorf("Expected 2 results")
+func expectAmountOfResults(t *testing.T, results []map[string]interface{}, expected int) {
+	if len(results) != expected {
+		t.Fatalf("Expected %d results, but got %d\n", expected, len(results))
 	}
 }
 
-func TestFindsMultipleWordsInQuery(t *testing.T) {
-	Mappings = map[string]string{
-		"name": "text",
+func expectedThingWithName(t *testing.T, results []map[string]interface{}, index int, expectedName string) {
+	if actual := results[index]["name"].(string); actual != expectedName {
+		t.Errorf("Expected first element to be %q, but was %q\n", expectedName, actual)
 	}
-	Index(map[string]interface{}{"name": "batman spiderman superman"})
-	Index(map[string]interface{}{"name": "spiderman"})
-	Index(map[string]interface{}{"name": "spiderman superman"})
+}
+
+func createNameMapping() {
+	Mappings = map[string]string{"name": "text"}
+}
+
+func indexProductWithName(name string) {
+	Index(map[string]interface{}{"name": name})
+}
+
+func TestFindsSimpleMatches(t *testing.T) {
+	createNameMapping()
+	indexProductWithName("some thing")
+	indexProductWithName("some other thing")
+	indexProductWithName("other")
+
+	results := Search([]QueryPart{{"name", "thing"}})
+	expectAmountOfResults(t, results, 2)
+}
+
+func TestFindsMultipleWordsInQuery(t *testing.T) {
+	createNameMapping()
+	indexProductWithName("batman spiderman superman")
+	indexProductWithName("spiderman")
+	indexProductWithName("spiderman superman")
 
 	results := Search([]QueryPart{{"name", "spiderman superman"}})
-	if len(results) != 2 {
-		t.Fatalf("Expected 2 results, but got %d\n", len(results))
-	}
+	expectAmountOfResults(t, results, 2)
 
-	expectedNames := []string{"batman spiderman superman", "spiderman superman"}
-	for i, expectedName := range expectedNames {
-		if actual := results[i]["name"].(string); actual != expectedName {
-			t.Errorf("Expected first element to be %q, but was %q\n", expectedName, actual)
-		}
-	}
+	expectedThingWithName(t, results, 0, "batman spiderman superman")
+	expectedThingWithName(t, results, 1, "spiderman superman")
 }
