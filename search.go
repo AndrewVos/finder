@@ -84,6 +84,8 @@ func indexTextField(id int, name string, value string) {
 	value = strings.ToLower(value)
 	words := strings.Split(value, " ")
 	for _, word := range words {
-		trie.Add(id, []byte(word))
+		if word != "" {
+			trie.Add(id, []byte(word))
+		}
 	}
 }

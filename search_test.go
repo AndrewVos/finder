@@ -1,7 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
+	"time"
 )
 
 func expectAmountOfResults(t *testing.T, results []map[string]interface{}, expected int) {
@@ -26,7 +32,7 @@ func indexProductWithName(name string) {
 
 func TestFindsSimpleMatches(t *testing.T) {
 	createNameMapping()
-	indexProductWithName("some thing")
+	indexProductWithName("some  thing")
 	indexProductWithName("some other thing")
 	indexProductWithName("other")
 
@@ -45,4 +51,53 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 
 	expectedThingWithName(t, results, 0, "batman spiderman superman")
 	expectedThingWithName(t, results, 1, "spiderman superman")
+}
+
+func TestLargeFile(t *testing.T) {
+	jsonPath := os.Getenv("JSON_PATH")
+	if jsonPath == "" {
+		return
+	}
+
+	createNameMapping()
+	files, err := ioutil.ReadDir(jsonPath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fileCount := 0
+	thingCount := 0
+	for _, file := range files {
+		if fileCount == 100 {
+			break
+		}
+		fileCount += 1
+		fmt.Println("indexing " + file.Name())
+		b, _ := ioutil.ReadFile(jsonPath + "/" + file.Name())
+		var things []map[string]interface{}
+		err = json.Unmarshal(b, &things)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		thingCount += len(things)
+		for _, thing := range things {
+			Index(thing)
+		}
+	}
+	fmt.Println("indexing complete")
+
+	start := time.Now()
+	results := Search([]QueryPart{{"name", "blue dress"}})
+	elapsed := time.Since(start)
+
+	for _, result := range results {
+		fmt.Println(result["name"])
+	}
+
+	fmt.Println()
+	fmt.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
+
+	log.Printf("Search took %s", elapsed)
 }
