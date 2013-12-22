@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -168,4 +169,11 @@ func TestLargeFile(t *testing.T) {
 		log.Printf("Search took %s", elapsed)
 		log.Println()
 	}
+
+	printMemoryStats := func() {
+		stats := &runtime.MemStats{}
+		runtime.ReadMemStats(stats)
+		fmt.Printf("Current memory usage: %d\n", stats.Alloc)
+	}
+	printMemoryStats()
 }
