@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-func expectAmountOfResults(t *testing.T, results []*Searchable, expected int) {
+func expectAmountOfResults(t *testing.T, results []*Document, expected int) {
 	if len(results) != expected {
 		t.Fatalf("Expected %d results, but got %d\n", expected, len(results))
 	}
 }
 
-func expectedSearchableWithName(t *testing.T, results []*Searchable, index int, expectedName string) {
+func expectedDocumentWithName(t *testing.T, results []*Document, index int, expectedName string) {
 	if actual := results[index].Source["name"].(string); actual != expectedName {
 		t.Errorf("Expected element %d to be %q, but was %q\n", index, expectedName, actual)
 	}
@@ -25,7 +25,7 @@ func expectedSearchableWithName(t *testing.T, results []*Searchable, index int, 
 func cleanup() {
 	currentID = 0
 	Mappings = nil
-	allSearchables = nil
+	allDocuments = nil
 	wordNodes = nil
 	lastWordNodes = nil
 }
@@ -67,8 +67,8 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
 
-	expectedSearchableWithName(t, results, 0, "batman spiderman superman")
-	expectedSearchableWithName(t, results, 1, "spiderman superman")
+	expectedDocumentWithName(t, results, 0, "batman spiderman superman")
+	expectedDocumentWithName(t, results, 1, "spiderman superman")
 }
 
 func TestResultsAreSortedAscending(t *testing.T) {
@@ -87,9 +87,9 @@ func TestResultsAreSortedAscending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedSearchableWithName(t, results, 0, "a thing")
-	expectedSearchableWithName(t, results, 1, "c thing")
-	expectedSearchableWithName(t, results, 2, "z thing")
+	expectedDocumentWithName(t, results, 0, "a thing")
+	expectedDocumentWithName(t, results, 1, "c thing")
+	expectedDocumentWithName(t, results, 2, "z thing")
 }
 
 func TestResultsAreSortedDescending(t *testing.T) {
@@ -108,9 +108,9 @@ func TestResultsAreSortedDescending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedSearchableWithName(t, results, 0, "z thing")
-	expectedSearchableWithName(t, results, 1, "c thing")
-	expectedSearchableWithName(t, results, 2, "a thing")
+	expectedDocumentWithName(t, results, 0, "z thing")
+	expectedDocumentWithName(t, results, 1, "c thing")
+	expectedDocumentWithName(t, results, 2, "a thing")
 }
 
 func TestLargeFile(t *testing.T) {

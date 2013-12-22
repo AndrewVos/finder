@@ -7,10 +7,10 @@ import (
 
 var currentID = 0
 var Mappings map[string]FieldMapping
-var allSearchables map[int]*Searchable
+var allDocuments map[int]*Document
 
 type WordNode struct {
-	Document *Searchable
+	Document *Document
 	Child    *WordNode
 }
 
@@ -22,7 +22,7 @@ type FieldMapping struct {
 	Sortable bool
 }
 
-type Searchable struct {
+type Document struct {
 	ID     int
 	Source map[string]interface{}
 }
@@ -42,21 +42,21 @@ type Query struct {
 	Sort []Sort
 }
 
-type Searchables []*Searchable
+type Documents []*Document
 
-func (s BySort) Len() int { return len(s.Searchables) }
+func (s BySort) Len() int { return len(s.Documents) }
 func (s BySort) Swap(i, j int) {
-	s.Searchables[i], s.Searchables[j] = s.Searchables[j], s.Searchables[i]
+	s.Documents[i], s.Documents[j] = s.Documents[j], s.Documents[i]
 }
 
 type BySort struct {
-	Searchables Searchables
-	Sort        []Sort
+	Documents Documents
+	Sort      []Sort
 }
 
 func (s BySort) Less(i, j int) bool {
 	field := s.Sort[0].Field
-	a, b := s.Searchables[i].Source[field].(string), s.Searchables[j].Source[field].(string)
+	a, b := s.Documents[i].Source[field].(string), s.Documents[j].Source[field].(string)
 	if s.Sort[0].Ascending {
 		return a < b
 	} else {
@@ -64,7 +64,7 @@ func (s BySort) Less(i, j int) bool {
 	}
 }
 
-func Search(query Query) Searchables {
+func Search(query Query) Documents {
 	for _, text := range query.Text {
 		results := searchTextField(text.Field, text.Value)
 		if len(query.Sort) > 0 {
@@ -76,16 +76,16 @@ func Search(query Query) Searchables {
 	return nil
 }
 
-func get(id int) *Searchable {
-	return allSearchables[id]
+func get(id int) *Document {
+	return allDocuments[id]
 }
 
-func searchTextField(field string, query string) Searchables {
-	var documents Searchables
+func searchTextField(field string, query string) Documents {
+	var documents Documents
 
 	words := splitWords(query)
 	requiredMatches := len(words)
-	matches := map[*Searchable]int{}
+	matches := map[*Document]int{}
 
 	for _, word := range words {
 		if node, ok := wordNodes[word]; ok {
@@ -115,15 +115,15 @@ func getNextId() int {
 
 func Index(source map[string]interface{}) {
 	id := getNextId()
-	if allSearchables == nil {
-		allSearchables = map[int]*Searchable{}
+	if allDocuments == nil {
+		allDocuments = map[int]*Document{}
 	}
-	thing := &Searchable{ID: id, Source: source}
-	allSearchables[id] = thing
+	document := &Document{ID: id, Source: source}
+	allDocuments[id] = document
 
 	for field, mapping := range Mappings {
 		if mapping.Type == "text" {
-			indexTextField(thing, field)
+			indexTextField(document, field)
 		}
 	}
 }
@@ -140,7 +140,7 @@ func splitWords(s string) []string {
 	return words
 }
 
-func indexTextField(document *Searchable, field string) {
+func indexTextField(document *Document, field string) {
 	if wordNodes == nil {
 		wordNodes = map[string]*WordNode{}
 	}
