@@ -1,25 +1,63 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
 )
 
 var currentID = 0
-var Mappings map[string]FieldMapping
+var Mappings map[string]string
 var allDocuments map[int]*Document
+var allIndexes map[string]*DataIndex
+
+type DataIndex struct {
+	WordNodes     map[string]*WordNode
+	LastWordNodes map[string]*WordNode
+	Sort          []Sort
+}
+
+func generateIndexName(sort []Sort) string {
+	name := ""
+	for _, sort := range sort {
+		name += fmt.Sprintf("(%v-%v)", sort.Field, sort.Ascending)
+	}
+	return name
+}
+
+func FindIndex(sort []Sort) (*DataIndex, error) {
+	name := generateIndexName(sort)
+	index, exists := allIndexes[name]
+	if !exists {
+		return nil, errors.New(fmt.Sprintf("Couldn't find index %q", name))
+	}
+	return index, nil
+}
+
+func CreateIndex(sort []Sort) {
+	if allIndexes == nil {
+		allIndexes = map[string]*DataIndex{}
+	}
+
+	name := generateIndexName(sort)
+	index := &DataIndex{Sort: sort}
+	index.WordNodes = map[string]*WordNode{}
+	index.LastWordNodes = map[string]*WordNode{}
+	allIndexes[name] = index
+
+	for _, document := range allDocuments {
+		for field, mapping := range Mappings {
+			if mapping == "text" {
+				indexTextField(index, document, field)
+			}
+		}
+	}
+}
 
 type WordNode struct {
 	Document *Document
 	Child    *WordNode
-}
-
-var wordNodes map[string]*WordNode
-var lastWordNodes map[string]*WordNode
-
-type FieldMapping struct {
-	Type     string
-	Sortable bool
 }
 
 type Document struct {
@@ -65,8 +103,14 @@ func (s BySort) Less(i, j int) bool {
 }
 
 func Search(query Query) Documents {
+	index, err := FindIndex(query.Sort)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
 	for _, text := range query.Text {
-		results := searchTextField(text.Field, text.Value)
+		results := searchTextField(index, text.Field, text.Value)
 		if len(query.Sort) > 0 {
 			sorter := BySort{results, query.Sort}
 			sort.Sort(sorter)
@@ -80,7 +124,7 @@ func get(id int) *Document {
 	return allDocuments[id]
 }
 
-func searchTextField(field string, query string) Documents {
+func searchTextField(index *DataIndex, field string, query string) Documents {
 	var documents Documents
 
 	words := splitWords(query)
@@ -88,7 +132,7 @@ func searchTextField(field string, query string) Documents {
 	matches := map[*Document]int{}
 
 	for _, word := range words {
-		if node, ok := wordNodes[word]; ok {
+		if node, ok := index.WordNodes[word]; ok {
 			for {
 				matches[node.Document] += 1
 				if matches[node.Document] == requiredMatches {
@@ -120,19 +164,33 @@ func Index(source map[string]interface{}) {
 	}
 	document := &Document{ID: id, Source: source}
 	allDocuments[id] = document
+}
 
-	for field, mapping := range Mappings {
-		if mapping.Type == "text" {
-			indexTextField(document, field)
+var stopWords map[string]bool
+
+func isStopWord(word string) bool {
+	if stopWords == nil {
+		stopWords = map[string]bool{}
+		words := []string{
+			"a", "an", "and", "are", "as", "at", "be", "but", "by",
+			"for", "if", "in", "into", "is", "it",
+			"no", "not", "of", "on", "or", "such",
+			"that", "the", "their", "then", "there", "these",
+			"they", "this", "to", "was", "will", "with",
+		}
+		for _, word := range words {
+			stopWords[word] = true
 		}
 	}
+
+	return stopWords[word]
 }
 
 func splitWords(s string) []string {
 	s = strings.ToLower(s)
 	var words []string
 	for _, word := range strings.Split(s, " ") {
-		if word != "" {
+		if word != "" && isStopWord(word) == false {
 			words = append(words, word)
 		}
 	}
@@ -140,26 +198,20 @@ func splitWords(s string) []string {
 	return words
 }
 
-func indexTextField(document *Document, field string) {
-	if wordNodes == nil {
-		wordNodes = map[string]*WordNode{}
-	}
-	if lastWordNodes == nil {
-		lastWordNodes = map[string]*WordNode{}
-	}
-
+func indexTextField(index *DataIndex, document *Document, field string) {
 	value := document.Source[field].(string)
 	words := splitWords(value)
+
 	for _, word := range words {
-		node, exists := wordNodes[word]
+		node, exists := index.WordNodes[word]
 		if exists {
-			lastWordNode := lastWordNodes[word]
+			lastWordNode := index.LastWordNodes[word]
 			lastWordNode.Child = &WordNode{Document: document}
-			lastWordNodes[word] = lastWordNode.Child
+			index.LastWordNodes[word] = lastWordNode.Child
 		} else {
 			node = &WordNode{Document: document}
-			wordNodes[word] = node
-			lastWordNodes[word] = node
+			index.WordNodes[word] = node
+			index.LastWordNodes[word] = node
 		}
 	}
 }

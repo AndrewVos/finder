@@ -27,13 +27,12 @@ func cleanup() {
 	currentID = 0
 	Mappings = nil
 	allDocuments = nil
-	wordNodes = nil
-	lastWordNodes = nil
+	allIndexes = nil
 }
 
 func createNameMapping() {
-	Mappings = map[string]FieldMapping{
-		"name": FieldMapping{Type: "text", Sortable: false},
+	Mappings = map[string]string{
+		"name": "text",
 	}
 }
 
@@ -52,6 +51,7 @@ func TestFindsSimpleMatches(t *testing.T) {
 	indexProductWithName("some  thing")
 	indexProductWithName("some other thing")
 	indexProductWithName("other")
+	CreateIndex(nil)
 
 	results := Search(createTextQuery("name", "thing"))
 	expectAmountOfResults(t, results, 2)
@@ -64,6 +64,7 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	indexProductWithName("batman spiderman superman")
 	indexProductWithName("spiderman")
 	indexProductWithName("spiderman superman")
+	CreateIndex(nil)
 
 	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
@@ -75,8 +76,8 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 func TestResultsAreSortedAscending(t *testing.T) {
 	defer cleanup()
 
-	Mappings = map[string]FieldMapping{
-		"name": FieldMapping{Type: "text"},
+	Mappings = map[string]string{
+		"name": "text",
 	}
 	indexProductWithName("c thing")
 	indexProductWithName("a thing")
@@ -86,6 +87,7 @@ func TestResultsAreSortedAscending(t *testing.T) {
 		Text: []TextQuery{{"name", "thing"}},
 		Sort: []Sort{{Field: "name", Ascending: true}},
 	}
+	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "a thing")
@@ -96,9 +98,7 @@ func TestResultsAreSortedAscending(t *testing.T) {
 func TestResultsAreSortedDescending(t *testing.T) {
 	defer cleanup()
 
-	Mappings = map[string]FieldMapping{
-		"name": FieldMapping{Type: "text"},
-	}
+	Mappings = map[string]string{"name": "text"}
 	indexProductWithName("c thing")
 	indexProductWithName("a thing")
 	indexProductWithName("z thing")
@@ -107,6 +107,7 @@ func TestResultsAreSortedDescending(t *testing.T) {
 		Text: []TextQuery{{"name", "thing"}},
 		Sort: []Sort{{Field: "name", Ascending: false}},
 	}
+	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "z thing")
@@ -150,6 +151,9 @@ func TestLargeFile(t *testing.T) {
 		}
 	}
 	fmt.Println("indexing complete")
+
+	CreateIndex(nil)
+	CreateIndex([]Sort{Sort{Field: "name", Ascending: true}})
 
 	queries := []string{
 		"blue dress",
