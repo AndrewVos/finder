@@ -1,13 +1,19 @@
 package main
 
 import (
+	"sort"
 	"strings"
 )
 
 var currentID = 0
-var Mappings map[string]string
+var Mappings map[string]FieldMapping
 var allSearchables map[int]*Searchable
 var wordIndexes map[string]*WordIndex
+
+type FieldMapping struct {
+	Type     string
+	Sortable bool
+}
 
 type Searchable struct {
 	ID     int
@@ -28,13 +34,46 @@ type TextQuery struct {
 	Value string
 }
 
-type Query struct {
-	Text []TextQuery
+type Sort struct {
+	Field     string
+	Ascending bool
 }
 
-func Search(query Query) []*Searchable {
+type Query struct {
+	Text []TextQuery
+	Sort []Sort
+}
+
+type Searchables []*Searchable
+
+func (s BySort) Len() int { return len(s.Searchables) }
+func (s BySort) Swap(i, j int) {
+	s.Searchables[i], s.Searchables[j] = s.Searchables[j], s.Searchables[i]
+}
+
+type BySort struct {
+	Searchables Searchables
+	Sort        []Sort
+}
+
+func (s BySort) Less(i, j int) bool {
+	field := s.Sort[0].Field
+	a, b := s.Searchables[i].Source[field].(string), s.Searchables[j].Source[field].(string)
+	if s.Sort[0].Ascending {
+		return a < b
+	} else {
+		return a > b
+	}
+}
+
+func Search(query Query) Searchables {
 	for _, text := range query.Text {
-		return searchTextField(text.Field, text.Value)
+		results := searchTextField(text.Field, text.Value)
+		if len(query.Sort) > 0 {
+			sorter := BySort{results, query.Sort}
+			sort.Sort(sorter)
+		}
+		return results
 	}
 	return nil
 }
@@ -43,8 +82,8 @@ func get(id int) *Searchable {
 	return allSearchables[id]
 }
 
-func searchTextField(field string, query string) []*Searchable {
-	var things []*Searchable
+func searchTextField(field string, query string) Searchables {
+	var things Searchables
 	words := strings.Split(query, " ")
 	wordIndex := wordIndexes[field]
 	matchCount := map[*Searchable]int{}
@@ -76,7 +115,7 @@ func Index(source map[string]interface{}) {
 	allSearchables[id] = thing
 
 	for field, mapping := range Mappings {
-		if mapping == "text" {
+		if mapping.Type == "text" {
 			indexTextField(thing, field)
 		}
 	}
