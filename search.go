@@ -4,17 +4,23 @@ import (
 	"strings"
 )
 
-var stems map[string][]string
 var currentID = 0
 var Mappings map[string]string
-var tries map[string]*Trie
-var allThings map[int]*Thing
-
+var allSearchables map[int]*Searchable
 var wordIndexes map[string]*WordIndex
 
-type Thing struct {
+type Searchable struct {
 	ID     int
 	Source map[string]interface{}
+}
+
+type WordIndex struct {
+	Words map[string][]WordCount
+}
+
+type WordCount struct {
+	Searchable *Searchable
+	Count      int
 }
 
 type TextQuery struct {
@@ -26,25 +32,25 @@ type Query struct {
 	Text []TextQuery
 }
 
-func Search(query Query) []*Thing {
+func Search(query Query) []*Searchable {
 	for _, text := range query.Text {
 		return searchTextField(text.Field, text.Value)
 	}
 	return nil
 }
 
-func get(id int) *Thing {
-	return allThings[id]
+func get(id int) *Searchable {
+	return allSearchables[id]
 }
 
-func searchTextField(field string, query string) []*Thing {
-	var things []*Thing
+func searchTextField(field string, query string) []*Searchable {
+	var things []*Searchable
 	words := strings.Split(query, " ")
 	wordIndex := wordIndexes[field]
-	matchCount := map[*Thing]int{}
+	matchCount := map[*Searchable]int{}
 	for _, word := range words {
 		for _, wordCount := range wordIndex.Words[word] {
-			matchCount[wordCount.Thing] += 1
+			matchCount[wordCount.Searchable] += 1
 		}
 	}
 	for thing, count := range matchCount {
@@ -63,11 +69,11 @@ func getNextId() int {
 
 func Index(source map[string]interface{}) {
 	id := getNextId()
-	if allThings == nil {
-		allThings = map[int]*Thing{}
+	if allSearchables == nil {
+		allSearchables = map[int]*Searchable{}
 	}
-	thing := &Thing{ID: id, Source: source}
-	allThings[id] = thing
+	thing := &Searchable{ID: id, Source: source}
+	allSearchables[id] = thing
 
 	for field, mapping := range Mappings {
 		if mapping == "text" {
@@ -76,11 +82,7 @@ func Index(source map[string]interface{}) {
 	}
 }
 
-type WordIndex struct {
-	Words map[string][]WordCount
-}
-
-func indexTextField(thing *Thing, field string) {
+func indexTextField(thing *Searchable, field string) {
 	if wordIndexes == nil {
 		wordIndexes = map[string]*WordIndex{}
 	}
@@ -101,14 +103,9 @@ func indexTextField(thing *Thing, field string) {
 
 	for word, count := range wordCount {
 		wc := WordCount{
-			Thing: thing,
-			Count: count,
+			Searchable: thing,
+			Count:      count,
 		}
 		wordIndex.Words[word] = append(wordIndex.Words[word], wc)
 	}
-}
-
-type WordCount struct {
-	Thing *Thing
-	Count int
 }

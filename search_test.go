@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-func expectAmountOfResults(t *testing.T, results []*Thing, expected int) {
+func expectAmountOfResults(t *testing.T, results []*Searchable, expected int) {
 	if len(results) != expected {
 		t.Fatalf("Expected %d results, but got %d\n", expected, len(results))
 	}
 }
 
-func expectedThingWithName(t *testing.T, results []*Thing, index int, expectedName string) {
+func expectedSearchableWithName(t *testing.T, results []*Searchable, index int, expectedName string) {
 	if actual := results[index].Source["name"].(string); actual != expectedName {
 		t.Errorf("Expected first element to be %q, but was %q\n", expectedName, actual)
 	}
@@ -53,8 +53,8 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
 
-	expectedThingWithName(t, results, 0, "batman spiderman superman")
-	expectedThingWithName(t, results, 1, "spiderman superman")
+	expectedSearchableWithName(t, results, 0, "batman spiderman superman")
+	expectedSearchableWithName(t, results, 1, "spiderman superman")
 }
 
 func TestLargeFile(t *testing.T) {
