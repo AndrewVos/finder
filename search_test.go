@@ -10,14 +10,14 @@ import (
 	"time"
 )
 
-func expectAmountOfResults(t *testing.T, results []map[string]interface{}, expected int) {
+func expectAmountOfResults(t *testing.T, results []*Thing, expected int) {
 	if len(results) != expected {
 		t.Fatalf("Expected %d results, but got %d\n", expected, len(results))
 	}
 }
 
-func expectedThingWithName(t *testing.T, results []map[string]interface{}, index int, expectedName string) {
-	if actual := results[index]["name"].(string); actual != expectedName {
+func expectedThingWithName(t *testing.T, results []*Thing, index int, expectedName string) {
+	if actual := results[index].Source["name"].(string); actual != expectedName {
 		t.Errorf("Expected first element to be %q, but was %q\n", expectedName, actual)
 	}
 }
@@ -92,16 +92,22 @@ func TestLargeFile(t *testing.T) {
 	}
 	fmt.Println("indexing complete")
 
-	start := time.Now()
-	results := Search(createTextQuery("name", "blue dress"))
-	elapsed := time.Since(start)
-
-	for _, result := range results {
-		fmt.Println(result["name"])
+	queries := []string{
+		"blue dress",
+		"car",
+		"monkey",
+		"dog house",
 	}
 
-	fmt.Println()
-	fmt.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
+	for _, query := range queries {
+		log.Printf("Searching for %q", query)
 
-	log.Printf("Search took %s", elapsed)
+		start := time.Now()
+		results := Search(createTextQuery("name", query))
+		elapsed := time.Since(start)
+
+		log.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
+		log.Printf("Search took %s", elapsed)
+		log.Println()
+	}
 }
