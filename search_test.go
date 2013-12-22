@@ -26,7 +26,8 @@ func cleanup() {
 	currentID = 0
 	Mappings = nil
 	allSearchables = nil
-	wordIndexes = nil
+	wordNodes = nil
+	lastWordNodes = nil
 }
 
 func createNameMapping() {

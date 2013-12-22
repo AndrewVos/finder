@@ -8,7 +8,14 @@ import (
 var currentID = 0
 var Mappings map[string]FieldMapping
 var allSearchables map[int]*Searchable
-var wordIndexes map[string]*WordIndex
+
+type WordNode struct {
+	Document *Searchable
+	Child    *WordNode
+}
+
+var wordNodes map[string]*WordNode
+var lastWordNodes map[string]*WordNode
 
 type FieldMapping struct {
 	Type     string
@@ -18,15 +25,6 @@ type FieldMapping struct {
 type Searchable struct {
 	ID     int
 	Source map[string]interface{}
-}
-
-type WordIndex struct {
-	Words map[string][]WordCount
-}
-
-type WordCount struct {
-	Searchable *Searchable
-	Count      int
 }
 
 type TextQuery struct {
@@ -83,21 +81,30 @@ func get(id int) *Searchable {
 }
 
 func searchTextField(field string, query string) Searchables {
-	var things Searchables
-	words := strings.Split(query, " ")
-	wordIndex := wordIndexes[field]
-	matchCount := map[*Searchable]int{}
+	var documents Searchables
+
+	words := splitWords(query)
+	requiredMatches := len(words)
+	matches := map[*Searchable]int{}
+
 	for _, word := range words {
-		for _, wordCount := range wordIndex.Words[word] {
-			matchCount[wordCount.Searchable] += 1
+		if node, ok := wordNodes[word]; ok {
+			for {
+				matches[node.Document] += 1
+				if matches[node.Document] == requiredMatches {
+					documents = append(documents, node.Document)
+				}
+				if node.Child == nil {
+					break
+				}
+				node = node.Child
+			}
+		} else {
+			return documents
 		}
 	}
-	for thing, count := range matchCount {
-		if count == len(words) {
-			things = append(things, thing)
-		}
-	}
-	return things
+
+	return documents
 }
 
 func getNextId() int {
@@ -121,30 +128,38 @@ func Index(source map[string]interface{}) {
 	}
 }
 
-func indexTextField(thing *Searchable, field string) {
-	if wordIndexes == nil {
-		wordIndexes = map[string]*WordIndex{}
-	}
-	wordIndex := wordIndexes[field]
-	if wordIndex == nil {
-		wordIndex = &WordIndex{Words: map[string][]WordCount{}}
-		wordIndexes[field] = wordIndex
-	}
-
-	value := strings.ToLower(thing.Source[field].(string))
-	words := strings.Split(value, " ")
-	wordCount := map[string]int{}
-	for _, word := range words {
+func splitWords(s string) []string {
+	s = strings.ToLower(s)
+	var words []string
+	for _, word := range strings.Split(s, " ") {
 		if word != "" {
-			wordCount[word] += 1
+			words = append(words, word)
 		}
 	}
 
-	for word, count := range wordCount {
-		wc := WordCount{
-			Searchable: thing,
-			Count:      count,
+	return words
+}
+
+func indexTextField(document *Searchable, field string) {
+	if wordNodes == nil {
+		wordNodes = map[string]*WordNode{}
+	}
+	if lastWordNodes == nil {
+		lastWordNodes = map[string]*WordNode{}
+	}
+
+	value := document.Source[field].(string)
+	words := splitWords(value)
+	for _, word := range words {
+		node, exists := wordNodes[word]
+		if exists {
+			lastWordNode := lastWordNodes[word]
+			lastWordNode.Child = &WordNode{Document: document}
+			lastWordNodes[word] = lastWordNode.Child
+		} else {
+			node = &WordNode{Document: document}
+			wordNodes[word] = node
+			lastWordNodes[word] = node
 		}
-		wordIndex.Words[word] = append(wordIndex.Words[word], wc)
 	}
 }
