@@ -13,9 +13,8 @@ var allDocuments map[int]*Document
 var allIndexes map[string]*DataIndex
 
 type DataIndex struct {
-	WordNodes     map[string]*WordNode
-	LastWordNodes map[string]*WordNode
-	Sort          []Sort
+	WordMap map[string][]int
+	Sort    []Sort
 }
 
 func generateIndexName(sort []Sort) string {
@@ -44,8 +43,7 @@ func createIndex(order []Sort) {
 	name := generateIndexName(order)
 	log.Printf("Creating index %q\n", name)
 	index := &DataIndex{Sort: order}
-	index.WordNodes = map[string]*WordNode{}
-	index.LastWordNodes = map[string]*WordNode{}
+	index.WordMap = map[string][]int{}
 	allIndexes[name] = index
 
 	var documents []*Document
@@ -139,8 +137,7 @@ func Search(query Query) Documents {
 	}
 
 	for _, text := range query.Text {
-		results := searchTextField(index, text.Field, text.Value)
-		return results
+		return searchTextField(index, text.Field, text.Value)
 	}
 	return nil
 }
@@ -154,19 +151,15 @@ func searchTextField(index *DataIndex, field string, query string) Documents {
 
 	words := splitWords(query)
 	requiredMatches := len(words)
-	matches := map[*Document]int{}
+	matches := map[int]int{}
 
 	for _, word := range words {
-		if node, ok := index.WordNodes[word]; ok {
-			for {
-				matches[node.Document] += 1
-				if matches[node.Document] == requiredMatches {
-					documents = append(documents, node.Document)
+		if ids, ok := index.WordMap[word]; ok {
+			for _, id := range ids {
+				matches[id] += 1
+				if matches[id] == requiredMatches {
+					documents = append(documents, get(id))
 				}
-				if node.Child == nil {
-					break
-				}
-				node = node.Child
 			}
 		} else {
 			return documents
@@ -228,15 +221,11 @@ func indexTextField(index *DataIndex, document *Document, field string) {
 	words := splitWords(value)
 
 	for _, word := range words {
-		node, exists := index.WordNodes[word]
+		ids, exists := index.WordMap[word]
 		if exists {
-			lastWordNode := index.LastWordNodes[word]
-			lastWordNode.Child = &WordNode{Document: document}
-			index.LastWordNodes[word] = lastWordNode.Child
+			index.WordMap[word] = append(ids, document.ID)
 		} else {
-			node = &WordNode{Document: document}
-			index.WordNodes[word] = node
-			index.LastWordNodes[word] = node
+			index.WordMap[word] = []int{document.ID}
 		}
 	}
 }
