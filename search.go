@@ -1,8 +1,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 )
@@ -26,21 +26,23 @@ func generateIndexName(sort []Sort) string {
 	return name
 }
 
-func FindIndex(sort []Sort) (*DataIndex, error) {
+func FindOrCreateIndex(sort []Sort) (*DataIndex, error) {
 	name := generateIndexName(sort)
 	index, exists := allIndexes[name]
 	if !exists {
-		return nil, errors.New(fmt.Sprintf("Couldn't find index %q", name))
+		createIndex(sort)
+		return FindOrCreateIndex(sort)
 	}
 	return index, nil
 }
 
-func CreateIndex(order []Sort) {
+func createIndex(order []Sort) {
 	if allIndexes == nil {
 		allIndexes = map[string]*DataIndex{}
 	}
 
 	name := generateIndexName(order)
+	log.Printf("Creating index %q\n", name)
 	index := &DataIndex{Sort: order}
 	index.WordNodes = map[string]*WordNode{}
 	index.LastWordNodes = map[string]*WordNode{}
@@ -130,7 +132,7 @@ func (s BySort) Less(i, j int) bool {
 }
 
 func Search(query Query) Documents {
-	index, err := FindIndex(query.Sort)
+	index, err := FindOrCreateIndex(query.Sort)
 	if err != nil {
 		fmt.Println(err)
 		return nil

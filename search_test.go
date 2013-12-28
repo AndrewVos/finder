@@ -54,7 +54,6 @@ func TestFindsSimpleMatches(t *testing.T) {
 	indexProductWithName("some  thing")
 	indexProductWithName("some other thing")
 	indexProductWithName("other")
-	CreateIndex(nil)
 
 	results := Search(createTextQuery("name", "thing"))
 	expectAmountOfResults(t, results, 2)
@@ -67,7 +66,6 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	indexProductWithName("batman spiderman superman")
 	indexProductWithName("spiderman")
 	indexProductWithName("spiderman superman")
-	CreateIndex(nil)
 
 	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
@@ -90,7 +88,6 @@ func TestSortTextAscending(t *testing.T) {
 		Text: []TextQuery{{"name", "thing"}},
 		Sort: []Sort{{Field: "name", Ascending: true}},
 	}
-	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "a thing")
@@ -110,7 +107,6 @@ func TestSortTextDescending(t *testing.T) {
 		Text: []TextQuery{{"name", "thing"}},
 		Sort: []Sort{{Field: "name", Ascending: false}},
 	}
-	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "z thing")
@@ -130,7 +126,6 @@ func TestSortIntAscending(t *testing.T) {
 		Text: []TextQuery{{"name", "name"}},
 		Sort: []Sort{{Field: "popularity", Ascending: true}},
 	}
-	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "name 3")
@@ -149,7 +144,6 @@ func TestSortIntDescending(t *testing.T) {
 		Text: []TextQuery{{"name", "name"}},
 		Sort: []Sort{{Field: "popularity", Ascending: false}},
 	}
-	CreateIndex(query.Sort)
 
 	results := Search(query)
 	expectedDocumentWithName(t, results, 0, "name 1")
@@ -194,10 +188,6 @@ func TestLargeFile(t *testing.T) {
 	}
 	fmt.Println("indexing complete")
 
-	fmt.Println("creating indexes...")
-	CreateIndex(nil)
-	CreateIndex([]Sort{Sort{Field: "name", Ascending: true}})
-
 	texts := []string{
 		"blue dress",
 		"car",
@@ -206,7 +196,7 @@ func TestLargeFile(t *testing.T) {
 	}
 
 	for _, text := range texts {
-		fmt.Printf("Searching for %q", text)
+		fmt.Printf("Searching for %q\n", text)
 
 		start := time.Now()
 		query := Query{Text: []TextQuery{{"name", text}}, Sort: []Sort{{Field: "name", Ascending: true}}}
@@ -214,11 +204,13 @@ func TestLargeFile(t *testing.T) {
 		elapsed := time.Since(start)
 
 		fmt.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
-		fmt.Printf("Search took %s", elapsed)
+		fmt.Printf("Search took %s\n", elapsed)
+		if len(results) > 10 {
+			results = results[:10]
+		}
 		for _, document := range results {
 			fmt.Println(document.Source["name"])
 		}
-		fmt.Println("NEXT")
 		fmt.Println()
 	}
 
