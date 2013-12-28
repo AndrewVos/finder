@@ -35,18 +35,28 @@ func FindIndex(sort []Sort) (*DataIndex, error) {
 	return index, nil
 }
 
-func CreateIndex(sort []Sort) {
+func CreateIndex(order []Sort) {
 	if allIndexes == nil {
 		allIndexes = map[string]*DataIndex{}
 	}
 
-	name := generateIndexName(sort)
-	index := &DataIndex{Sort: sort}
+	name := generateIndexName(order)
+	index := &DataIndex{Sort: order}
 	index.WordNodes = map[string]*WordNode{}
 	index.LastWordNodes = map[string]*WordNode{}
 	allIndexes[name] = index
 
+	var documents []*Document
 	for _, document := range allDocuments {
+		documents = append(documents, document)
+	}
+
+	if len(order) != 0 {
+		sorter := BySort{documents, order}
+		sort.Sort(sorter)
+	}
+
+	for _, document := range documents {
 		for field, mapping := range Mappings {
 			if mapping == "text" {
 				indexTextField(index, document, field)
@@ -93,13 +103,30 @@ type BySort struct {
 }
 
 func (s BySort) Less(i, j int) bool {
-	field := s.Sort[0].Field
-	a, b := s.Documents[i].Source[field].(string), s.Documents[j].Source[field].(string)
-	if s.Sort[0].Ascending {
-		return a < b
-	} else {
-		return a > b
+	for _, sortType := range s.Sort {
+		if Mappings[sortType.Field] == "text" {
+			a, b := s.Documents[i].Source[sortType.Field].(string), s.Documents[j].Source[sortType.Field].(string)
+			a, b = strings.ToLower(a), strings.ToLower(b)
+			if a != b {
+				if sortType.Ascending {
+					return a < b
+				} else {
+					return a > b
+				}
+			}
+		} else if Mappings[sortType.Field] == "integer" {
+			a, b := s.Documents[i].Source[sortType.Field].(int), s.Documents[j].Source[sortType.Field].(int)
+			if a != b {
+				if sortType.Ascending {
+					return a < b
+				} else {
+					return a > b
+				}
+			}
+		}
 	}
+
+	return false
 }
 
 func Search(query Query) Documents {
@@ -111,10 +138,6 @@ func Search(query Query) Documents {
 
 	for _, text := range query.Text {
 		results := searchTextField(index, text.Field, text.Value)
-		if len(query.Sort) > 0 {
-			sorter := BySort{results, query.Sort}
-			sort.Sort(sorter)
-		}
 		return results
 	}
 	return nil

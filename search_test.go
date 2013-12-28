@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"runtime"
 	"testing"
@@ -40,6 +39,10 @@ func indexProductWithName(name string) {
 	Index(map[string]interface{}{"name": name})
 }
 
+func indexProductWithPopularity(name string, popularity int) {
+	Index(map[string]interface{}{"name": name, "popularity": popularity})
+}
+
 func createTextQuery(field string, value string) Query {
 	return Query{Text: []TextQuery{{field, value}}}
 }
@@ -73,7 +76,7 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	expectedDocumentWithName(t, results, 1, "spiderman superman")
 }
 
-func TestResultsAreSortedAscending(t *testing.T) {
+func TestSortTextAscending(t *testing.T) {
 	defer cleanup()
 
 	Mappings = map[string]string{
@@ -95,7 +98,7 @@ func TestResultsAreSortedAscending(t *testing.T) {
 	expectedDocumentWithName(t, results, 2, "z thing")
 }
 
-func TestResultsAreSortedDescending(t *testing.T) {
+func TestSortTextDescending(t *testing.T) {
 	defer cleanup()
 
 	Mappings = map[string]string{"name": "text"}
@@ -113,6 +116,45 @@ func TestResultsAreSortedDescending(t *testing.T) {
 	expectedDocumentWithName(t, results, 0, "z thing")
 	expectedDocumentWithName(t, results, 1, "c thing")
 	expectedDocumentWithName(t, results, 2, "a thing")
+}
+
+func TestSortIntAscending(t *testing.T) {
+	defer cleanup()
+
+	Mappings = map[string]string{"name": "text", "popularity": "integer"}
+	indexProductWithPopularity("name 1", 10)
+	indexProductWithPopularity("name 2", 5)
+	indexProductWithPopularity("name 3", 1)
+
+	query := Query{
+		Text: []TextQuery{{"name", "name"}},
+		Sort: []Sort{{Field: "popularity", Ascending: true}},
+	}
+	CreateIndex(query.Sort)
+
+	results := Search(query)
+	expectedDocumentWithName(t, results, 0, "name 3")
+	expectedDocumentWithName(t, results, 1, "name 2")
+	expectedDocumentWithName(t, results, 2, "name 1")
+}
+func TestSortIntDescending(t *testing.T) {
+	defer cleanup()
+
+	Mappings = map[string]string{"name": "text", "popularity": "integer"}
+	indexProductWithPopularity("name 1", 10)
+	indexProductWithPopularity("name 2", 5)
+	indexProductWithPopularity("name 3", 1)
+
+	query := Query{
+		Text: []TextQuery{{"name", "name"}},
+		Sort: []Sort{{Field: "popularity", Ascending: false}},
+	}
+	CreateIndex(query.Sort)
+
+	results := Search(query)
+	expectedDocumentWithName(t, results, 0, "name 1")
+	expectedDocumentWithName(t, results, 1, "name 2")
+	expectedDocumentWithName(t, results, 2, "name 3")
 }
 
 func TestLargeFile(t *testing.T) {
@@ -133,7 +175,7 @@ func TestLargeFile(t *testing.T) {
 	fileCount := 0
 	thingCount := 0
 	for _, file := range files {
-		if fileCount == 100 {
+		if fileCount == 10 {
 			break
 		}
 		fileCount += 1
@@ -152,26 +194,32 @@ func TestLargeFile(t *testing.T) {
 	}
 	fmt.Println("indexing complete")
 
+	fmt.Println("creating indexes...")
 	CreateIndex(nil)
 	CreateIndex([]Sort{Sort{Field: "name", Ascending: true}})
 
-	queries := []string{
+	texts := []string{
 		"blue dress",
 		"car",
 		"monkey",
 		"dog house",
 	}
 
-	for _, query := range queries {
-		log.Printf("Searching for %q", query)
+	for _, text := range texts {
+		fmt.Printf("Searching for %q", text)
 
 		start := time.Now()
-		results := Search(createTextQuery("name", query))
+		query := Query{Text: []TextQuery{{"name", text}}, Sort: []Sort{{Field: "name", Ascending: true}}}
+		results := Search(query)
 		elapsed := time.Since(start)
 
-		log.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
-		log.Printf("Search took %s", elapsed)
-		log.Println()
+		fmt.Printf("Found %d things out of a total of %d\n", len(results), thingCount)
+		fmt.Printf("Search took %s", elapsed)
+		for _, document := range results {
+			fmt.Println(document.Source["name"])
+		}
+		fmt.Println("NEXT")
+		fmt.Println()
 	}
 
 	printMemoryStats := func() {
