@@ -16,7 +16,7 @@ func expectAmountOfResults(t *testing.T, results []*Document, expected int) {
 	}
 }
 
-func expectedDocumentWithName(t *testing.T, results []*Document, index int, expectedName string) {
+func expectDocumentWithName(t *testing.T, results []*Document, index int, expectedName string) {
 	if actual := results[index].Source["name"].(string); actual != expectedName {
 		t.Errorf("Expected element %d to be %q, but was %q\n", index, expectedName, actual)
 	}
@@ -70,8 +70,8 @@ func TestFindsMultipleWordsInQuery(t *testing.T) {
 	results := Search(createTextQuery("name", "spiderman superman"))
 	expectAmountOfResults(t, results, 2)
 
-	expectedDocumentWithName(t, results, 0, "batman spiderman superman")
-	expectedDocumentWithName(t, results, 1, "spiderman superman")
+	expectDocumentWithName(t, results, 0, "batman spiderman superman")
+	expectDocumentWithName(t, results, 1, "spiderman superman")
 }
 
 func TestSortTextAscending(t *testing.T) {
@@ -90,9 +90,9 @@ func TestSortTextAscending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedDocumentWithName(t, results, 0, "a thing")
-	expectedDocumentWithName(t, results, 1, "c thing")
-	expectedDocumentWithName(t, results, 2, "z thing")
+	expectDocumentWithName(t, results, 0, "a thing")
+	expectDocumentWithName(t, results, 1, "c thing")
+	expectDocumentWithName(t, results, 2, "z thing")
 }
 
 func TestSortTextDescending(t *testing.T) {
@@ -109,9 +109,9 @@ func TestSortTextDescending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedDocumentWithName(t, results, 0, "z thing")
-	expectedDocumentWithName(t, results, 1, "c thing")
-	expectedDocumentWithName(t, results, 2, "a thing")
+	expectDocumentWithName(t, results, 0, "z thing")
+	expectDocumentWithName(t, results, 1, "c thing")
+	expectDocumentWithName(t, results, 2, "a thing")
 }
 
 func TestSortIntAscending(t *testing.T) {
@@ -128,9 +128,9 @@ func TestSortIntAscending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedDocumentWithName(t, results, 0, "name 3")
-	expectedDocumentWithName(t, results, 1, "name 2")
-	expectedDocumentWithName(t, results, 2, "name 1")
+	expectDocumentWithName(t, results, 0, "name 3")
+	expectDocumentWithName(t, results, 1, "name 2")
+	expectDocumentWithName(t, results, 2, "name 1")
 }
 func TestSortIntDescending(t *testing.T) {
 	defer cleanup()
@@ -146,9 +146,9 @@ func TestSortIntDescending(t *testing.T) {
 	}
 
 	results := Search(query)
-	expectedDocumentWithName(t, results, 0, "name 1")
-	expectedDocumentWithName(t, results, 1, "name 2")
-	expectedDocumentWithName(t, results, 2, "name 3")
+	expectDocumentWithName(t, results, 0, "name 1")
+	expectDocumentWithName(t, results, 1, "name 2")
+	expectDocumentWithName(t, results, 2, "name 3")
 }
 
 func TestLargeFile(t *testing.T) {
